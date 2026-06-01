@@ -1,0 +1,26 @@
+# ── Web Framework ──────────────────────────────────────────────
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-CORS==4.0.1
+Werkzeug==3.0.3
+
+# ── Deep Learning ──────────────────────────────────────────────
+# TF 2.21 ships its own bundled numpy; do NOT pin numpy separately
+tensorflow==2.21.0
+
+# ── Audio Processing ───────────────────────────────────────────
+librosa==0.10.2
+soundfile==0.12.1
+audioread==3.0.1
+
+# ── Data Science ───────────────────────────────────────────────
+# numpy is intentionally unpinned — let TF 2.21 resolve it (needs >=2.0)
+numpy>=2.0.0
+pandas>=2.2.0
+scikit-learn>=1.4.0
+matplotlib>=3.8.0
+joblib>=1.4.0
+
+# ── Auth ───────────────────────────────────────────────────────
+PyJWT==2.8.0
+bcrypt==4.1.3

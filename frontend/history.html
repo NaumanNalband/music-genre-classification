@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>History — Music Genre Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<button class="hamburger">☰</button>
+<div class="page-wrapper">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎵</div>
+      <div>
+        <div class="logo-text">GenreAI</div>
+        <div class="logo-sub">Music Classifier</div>
+      </div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="upload.html"    class="nav-link"><span class="nav-icon">🎧</span> Upload & Predict</a>
+    <a href="history.html"   class="nav-link"><span class="nav-icon">📋</span> History</a>
+    <a href="stats.html"     class="nav-link"><span class="nav-icon">📊</span> Statistics</a>
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="avatar" data-avatar></div>
+        <div class="sidebar-username" data-username></div>
+      </div>
+      <button class="logout-btn">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="page-header fade-up" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Prediction History</div>
+        <div class="page-subtitle">All your past classifications</div>
+      </div>
+      <a href="upload.html" class="btn btn-primary fade-up">+ New Prediction</a>
+    </div>
+
+    <div id="historyContent" class="fade-up delay-1">
+      <div class="empty-state">
+        <div class="spinner"></div>
+        <p style="margin-top:16px;color:var(--text-muted)">Loading history…</p>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" style="margin-top:24px;display:flex;gap:8px;justify-content:center"></div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+
+  let currentPage = 1;
+  const PER_PAGE  = 15;
+
+  async function loadHistory(page = 1) {
+    currentPage = page;
+    const container = document.getElementById('historyContent');
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="spinner"></div>
+        <p style="margin-top:16px;color:var(--text-muted)">Loading…</p>
+      </div>`;
+
+    try {
+      const data = await apiFetch(`/history?page=${page}&per_page=${PER_PAGE}`);
+
+      if (!data.predictions.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🎶</div>
+            <div class="empty-title">No predictions yet</div>
+            <p>Upload a track to see your history here</p>
+            <a href="upload.html" class="btn btn-primary" style="margin-top:16px">Upload Audio</a>
+          </div>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th>File Name</th>
+              <th>Predicted Genre</th>
+              <th>Confidence</th>
+              <th>Date & Time</th>
+            </tr></thead>
+            <tbody>
+              ${data.predictions.map((p, i) => `
+                <tr>
+                  <td class="font-mono" style="color:var(--text-muted);font-size:12px">
+                    ${(page-1)*PER_PAGE + i + 1}
+                  </td>
+                  <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-family:var(--font-mono)">
+                    ${p.filename}
+                  </td>
+                  <td>
+                    <span class="genre-badge"
+                      style="background:${genreColor(p.predicted_genre)}22;color:${genreColor(p.predicted_genre)};border-color:${genreColor(p.predicted_genre)}44">
+                      ${p.predicted_genre}
+                    </span>
+                  </td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <div style="width:60px;height:4px;background:var(--bg-surface);border-radius:99px;overflow:hidden">
+                        <div style="height:100%;width:${p.confidence_score}%;background:${genreColor(p.predicted_genre)};border-radius:99px"></div>
+                      </div>
+                      <span class="font-mono" style="font-size:12px">${p.confidence_score}%</span>
+                    </div>
+                  </td>
+                  <td style="color:var(--text-muted);font-size:13px">${formatDate(p.prediction_time)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+      renderPagination(data.pages, page);
+    } catch (err) {
+      container.innerHTML = `<div class="alert alert-error">⚠️ ${err.message}</div>`;
+    }
+  }
+
+  function renderPagination(total, current) {
+    const pag = document.getElementById('pagination');
+    if (total <= 1) { pag.innerHTML = ''; return; }
+
+    let html = '';
+    for (let i = 1; i <= total; i++) {
+      html += `<button class="btn ${i === current ? 'btn-primary' : 'btn-secondary'}"
+                       style="padding:8px 14px;min-width:40px"
+                       onclick="loadHistory(${i})">${i}</button>`;
+    }
+    pag.innerHTML = html;
+  }
+
+  loadHistory();
+</script>
+</body>
+</html>

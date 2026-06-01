@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload & Predict — Music Genre Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<button class="hamburger">☰</button>
+<div class="page-wrapper">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎵</div>
+      <div>
+        <div class="logo-text">GenreAI</div>
+        <div class="logo-sub">Music Classifier</div>
+      </div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="upload.html"    class="nav-link"><span class="nav-icon">🎧</span> Upload & Predict</a>
+    <a href="history.html"   class="nav-link"><span class="nav-icon">📋</span> History</a>
+    <a href="stats.html"     class="nav-link"><span class="nav-icon">📊</span> Statistics</a>
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="avatar" data-avatar></div>
+        <div class="sidebar-username" data-username></div>
+      </div>
+      <button class="logout-btn">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="page-header fade-up">
+      <div class="page-title">Upload & Predict</div>
+      <div class="page-subtitle">Upload an audio file to identify its genre</div>
+    </div>
+
+    <div id="alertBox"></div>
+
+    <!-- Upload zone -->
+    <div class="card fade-up delay-1" style="margin-bottom:24px" id="uploadSection">
+      <div class="card-title">Audio File</div>
+
+      <div class="upload-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".wav,.mp3,.ogg,.flac"
+               style="display:none" />
+        <div class="upload-icon">🎧</div>
+        <div class="upload-title">Drop your audio file here</div>
+        <div class="upload-sub">or click to browse</div>
+        <div class="upload-formats">Supported: WAV · MP3 · OGG · FLAC</div>
+      </div>
+
+      <!-- File info (hidden until file selected) -->
+      <div id="fileInfo" style="display:none;margin-top:16px;">
+        <div class="alert alert-info" id="fileNameBadge"></div>
+        <!-- Native audio player -->
+        <div class="audio-player">
+          <span>🔊</span>
+          <audio id="audioPreview" controls></audio>
+        </div>
+        <button class="btn btn-primary" id="predictBtn" style="margin-top:16px">
+          🔍 Predict Genre
+        </button>
+        <button class="btn btn-secondary" id="clearBtn" style="margin-top:16px;margin-left:8px">
+          ✕ Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Result section (hidden until prediction completes) -->
+    <div id="resultSection" style="display:none">
+
+      <!-- Main result banner -->
+      <div class="result-banner fade-up" id="resultBanner">
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">
+          Predicted Genre
+        </div>
+        <div class="result-genre" id="resultGenre">—</div>
+        <div class="result-confidence" id="resultConf">—</div>
+        <div class="confidence-bar-wrap" style="max-width:360px;margin:20px auto 0">
+          <div class="confidence-bar-fill" id="confBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- All genre probabilities -->
+      <div class="card fade-up delay-1">
+        <div class="card-title">All Genre Probabilities</div>
+        <div class="prob-list" id="probList"></div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px" class="fade-up delay-2">
+        <button class="btn btn-secondary" id="tryAnotherBtn">🎵 Try Another</button>
+        <a href="history.html" class="btn btn-secondary">📋 View History</a>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+
+  // ── State ─────────────────────────────────────────────────────
+  let storedFilename = null;
+  let originalName   = null;
+
+  // ── DOM ───────────────────────────────────────────────────────
+  const dropZone    = document.getElementById('dropZone');
+  const fileInput   = document.getElementById('fileInput');
+  const fileInfo    = document.getElementById('fileInfo');
+  const fileNameBadge = document.getElementById('fileNameBadge');
+  const audioPreview  = document.getElementById('audioPreview');
+  const predictBtn  = document.getElementById('predictBtn');
+  const clearBtn    = document.getElementById('clearBtn');
+  const resultSection = document.getElementById('resultSection');
+  const alertBox    = document.getElementById('alertBox');
+
+  // ── File selection ────────────────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault(); dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    const allowed = ['audio/wav','audio/mpeg','audio/ogg','audio/flac','audio/x-wav'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    const extOk = ['wav','mp3','ogg','flac'].includes(ext);
+    if (!allowed.includes(file.type) && !extOk) {
+      return showAlert(alertBox, 'Please upload a WAV, MP3, OGG, or FLAC file.');
+    }
+
+    originalName = file.name;
+    fileNameBadge.innerHTML = `ℹ️ <strong>${file.name}</strong> — ${(file.size/1024).toFixed(1)} KB`;
+    audioPreview.src = URL.createObjectURL(file);
+    fileInfo.style.display = 'block';
+    resultSection.style.display = 'none';
+    alertBox.innerHTML = '';
+
+    // Auto-upload
+    uploadFile(file);
+  }
+
+  async function uploadFile(file) {
+    setLoading(predictBtn, true, 'Uploading…');
+    const fd = new FormData();
+    fd.append('audio', file);
+
+    try {
+      const data = await apiUpload('/upload', fd);
+      storedFilename = data.stored_filename;
+      setLoading(predictBtn, false);
+    } catch (err) {
+      showAlert(alertBox, 'Upload failed: ' + err.message);
+      setLoading(predictBtn, false);
+    }
+  }
+
+  // ── Predict ───────────────────────────────────────────────────
+  predictBtn.addEventListener('click', async () => {
+    if (!storedFilename) return showAlert(alertBox, 'Please upload a file first.');
+
+    setLoading(predictBtn, true, 'Analysing…');
+    alertBox.innerHTML = '';
+
+    try {
+      const data = await apiFetch('/predict', {
+        method: 'POST',
+        body: JSON.stringify({ stored_filename: storedFilename, original_name: originalName }),
+      });
+      renderResult(data);
+    } catch (err) {
+      showAlert(alertBox, 'Prediction error: ' + err.message);
+      setLoading(predictBtn, false);
+    }
+  });
+
+  function renderResult(data) {
+    setLoading(predictBtn, false);
+    resultSection.style.display = 'block';
+    resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const color = genreColor(data.genre);
+    document.getElementById('resultGenre').textContent = data.genre;
+    document.getElementById('resultGenre').style.color = color;
+    document.getElementById('resultConf').textContent  = `${data.confidence}% confidence`;
+    document.getElementById('resultBanner').style.borderColor = color;
+    document.getElementById('resultBanner').style.boxShadow = `0 0 32px ${color}33`;
+
+    // Animate confidence bar
+    setTimeout(() => {
+      document.getElementById('confBar').style.width = data.confidence + '%';
+    }, 100);
+
+    // Probability bars (sorted desc)
+    const sorted = Object.entries(data.all_probabilities).sort((a,b) => b[1]-a[1]);
+    const probList = document.getElementById('probList');
+    probList.innerHTML = sorted.map(([genre, pct]) => {
+      const c = genreColor(genre);
+      return `
+        <div class="prob-row">
+          <span class="prob-label">${genre}</span>
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill" style="width:${pct}%;background:${c}" data-pct="${pct}"></div>
+          </div>
+          <span class="prob-pct">${pct}%</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Clear ─────────────────────────────────────────────────────
+  clearBtn.addEventListener('click', () => {
+    fileInput.value = '';
+    audioPreview.src = '';
+    storedFilename = null;
+    originalName   = null;
+    fileInfo.style.display = 'none';
+    resultSection.style.display = 'none';
+    alertBox.innerHTML = '';
+  });
+
+  document.getElementById('tryAnotherBtn').addEventListener('click', () => {
+    clearBtn.click();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+</body>
+</html>

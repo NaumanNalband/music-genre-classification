@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+
+# TensorFlow / model artefacts
+model/genre_classifier.keras
+model/label_encoder.pkl
+model/training_history.png
+
+# Database
+backend/database.db
+
+# Uploads (user data — not committed)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Data (GTZAN is large — download separately)
+data/genres/**/*.wav
+data/genres/**/*.au
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.env

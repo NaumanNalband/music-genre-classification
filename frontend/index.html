@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Music Genre Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card fade-up">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🎵</div>
+        <h1>GenreAI</h1>
+        <p>Music Genre Classification System</p>
+      </div>
+
+      <h2 class="auth-title">Welcome back</h2>
+      <p class="auth-subtitle">Sign in to classify your music</p>
+
+      <div id="alertBox"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username"
+               placeholder="your_username" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password"
+               placeholder="••••••••" autocomplete="current-password" />
+      </div>
+
+      <button class="btn btn-primary btn-full" id="loginBtn">Sign In</button>
+
+      <p class="auth-footer">
+        Don't have an account? <a href="register.html">Create one →</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    redirectIfLoggedIn();   // already logged in? go to dashboard
+
+    const loginBtn  = document.getElementById('loginBtn');
+    const alertBox  = document.getElementById('alertBox');
+
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        return showAlert(alertBox, 'Please fill in all fields.');
+      }
+
+      setLoading(loginBtn, true, 'Signing in…');
+      try {
+        const data = await apiFetch('/login', {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        saveAuth(data.token, data.user);
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        showAlert(alertBox, err.message);
+        setLoading(loginBtn, false);
+      }
+    }
+
+    loginBtn.addEventListener('click', doLogin);
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  </script>
+</body>
+</html>

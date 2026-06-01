@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — Music Genre Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card fade-up">
+
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🎵</div>
+        <h1>GenreAI</h1>
+        <p>Music Genre Classification System</p>
+      </div>
+
+      <h2 class="auth-title">Create an account</h2>
+      <p class="auth-subtitle">Start classifying your music today</p>
+
+      <div id="alertBox"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username"
+               placeholder="choose_a_username" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input class="form-input" type="email" id="email"
+               placeholder="you@example.com" autocomplete="email" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password"
+               placeholder="min. 6 characters" autocomplete="new-password" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="confirm">Confirm Password</label>
+        <input class="form-input" type="password" id="confirm"
+               placeholder="repeat password" autocomplete="new-password" />
+      </div>
+
+      <button class="btn btn-primary btn-full" id="registerBtn">Create Account</button>
+
+      <p class="auth-footer">
+        Already have an account? <a href="index.html">Sign in →</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    const registerBtn = document.getElementById('registerBtn');
+    const alertBox    = document.getElementById('alertBox');
+
+    async function doRegister() {
+      const username = document.getElementById('username').value.trim();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirm  = document.getElementById('confirm').value;
+
+      if (!username || !email || !password || !confirm)
+        return showAlert(alertBox, 'Please fill in all fields.');
+      if (password !== confirm)
+        return showAlert(alertBox, 'Passwords do not match.');
+      if (password.length < 6)
+        return showAlert(alertBox, 'Password must be at least 6 characters.');
+
+      setLoading(registerBtn, true, 'Creating account…');
+      try {
+        const data = await apiFetch('/register', {
+          method: 'POST',
+          body: JSON.stringify({ username, email, password }),
+        });
+        saveAuth(data.token, data.user);
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        showAlert(alertBox, err.message);
+        setLoading(registerBtn, false);
+      }
+    }
+
+    registerBtn.addEventListener('click', doRegister);
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+  </script>
+</body>
+</html>

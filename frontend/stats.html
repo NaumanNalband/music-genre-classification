@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Statistics — Music Genre Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<button class="hamburger">☰</button>
+<div class="page-wrapper">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎵</div>
+      <div>
+        <div class="logo-text">GenreAI</div>
+        <div class="logo-sub">Music Classifier</div>
+      </div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="upload.html"    class="nav-link"><span class="nav-icon">🎧</span> Upload & Predict</a>
+    <a href="history.html"   class="nav-link"><span class="nav-icon">📋</span> History</a>
+    <a href="stats.html"     class="nav-link"><span class="nav-icon">📊</span> Statistics</a>
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="avatar" data-avatar></div>
+        <div class="sidebar-username" data-username></div>
+      </div>
+      <button class="logout-btn">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="page-header fade-up">
+      <div class="page-title">Statistics</div>
+      <div class="page-subtitle">Insights into your classification patterns</div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="stats-grid" id="summaryGrid">
+      <div class="stat-card fade-up delay-1" style="--accent-color:#00e5ff">
+        <div class="stat-icon">🎵</div>
+        <div class="stat-value" id="sc-total">—</div>
+        <div class="stat-label">Total Predictions</div>
+      </div>
+      <div class="stat-card fade-up delay-2" style="--accent-color:#ffd166">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-value" id="sc-top" style="font-size:20px;text-transform:capitalize">—</div>
+        <div class="stat-label">Top Genre</div>
+      </div>
+      <div class="stat-card fade-up delay-3" style="--accent-color:#06d6a0">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value" id="sc-avg">—</div>
+        <div class="stat-label">Avg. Confidence</div>
+      </div>
+      <div class="stat-card fade-up delay-4" style="--accent-color:#ce93d8">
+        <div class="stat-icon">📁</div>
+        <div class="stat-value" id="sc-unique">—</div>
+        <div class="stat-label">Unique Genres</div>
+      </div>
+    </div>
+
+    <!-- Charts grid -->
+    <div class="chart-grid fade-up delay-2">
+      <div class="card">
+        <div class="card-title">Genre Distribution</div>
+        <div class="chart-container">
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Predictions by Genre</div>
+        <div class="chart-container">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state (shown if no data) -->
+    <div id="emptyStats" style="display:none">
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No data yet</div>
+        <p>Make your first prediction to see stats here</p>
+        <a href="upload.html" class="btn btn-primary" style="margin-top:16px">Upload Audio</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+
+  // Chart.js global defaults — dark theme
+  Chart.defaults.color = '#5a6a82';
+  Chart.defaults.borderColor = '#1e2d40';
+  Chart.defaults.font.family = "'DM Mono', monospace";
+
+  let pieChartInst = null;
+  let barChartInst = null;
+
+  async function loadStats() {
+    try {
+      const data = await apiFetch('/stats');
+
+      if (data.total_predictions === 0) {
+        document.getElementById('emptyStats').style.display = 'block';
+        document.querySelector('.chart-grid').style.display = 'none';
+        return;
+      }
+
+      // Summary
+      document.getElementById('sc-total').textContent  = data.total_predictions;
+      document.getElementById('sc-top').textContent    = data.most_predicted || '—';
+      document.getElementById('sc-avg').textContent    = data.average_confidence + '%';
+      document.getElementById('sc-unique').textContent = Object.keys(data.genre_distribution).length;
+
+      // Prepare chart data
+      const dist   = data.genre_distribution;
+      const genres = Object.keys(dist);
+      const counts = Object.values(dist);
+      const colors = genres.map(g => genreColor(g));
+
+      // ── Pie Chart ────────────────────────────────────────────
+      if (pieChartInst) pieChartInst.destroy();
+      pieChartInst = new Chart(document.getElementById('pieChart'), {
+        type: 'doughnut',
+        data: {
+          labels: genres.map(g => g.charAt(0).toUpperCase() + g.slice(1)),
+          datasets: [{
+            data:            counts,
+            backgroundColor: colors.map(c => c + 'cc'),
+            borderColor:     colors,
+            borderWidth:     2,
+            hoverOffset:     8,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '60%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#8a9ab5', padding: 16, font: { size: 12 } },
+            },
+            tooltip: {
+              backgroundColor: '#131820',
+              borderColor: '#1e2d40',
+              borderWidth: 1,
+              titleColor: '#e8edf5',
+              bodyColor: '#8a9ab5',
+              callbacks: {
+                label: ctx => ` ${ctx.parsed} prediction${ctx.parsed !== 1 ? 's' : ''}`,
+              },
+            },
+          },
+        },
+      });
+
+      // ── Bar Chart ─────────────────────────────────────────────
+      if (barChartInst) barChartInst.destroy();
+      barChartInst = new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: {
+          labels: genres.map(g => g.charAt(0).toUpperCase() + g.slice(1)),
+          datasets: [{
+            label: 'Predictions',
+            data:  counts,
+            backgroundColor: colors.map(c => c + '99'),
+            borderColor:     colors,
+            borderWidth:     1,
+            borderRadius:    6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#131820',
+              borderColor: '#1e2d40',
+              borderWidth: 1,
+              titleColor: '#e8edf5',
+              bodyColor: '#8a9ab5',
+            },
+          },
+          scales: {
+            x: {
+              grid:  { color: '#1e2d40' },
+              ticks: { color: '#5a6a82' },
+            },
+            y: {
+              beginAtZero: true,
+              grid:  { color: '#1e2d40' },
+              ticks: { color: '#5a6a82', stepSize: 1 },
+            },
+          },
+        },
+      });
+
+    } catch (err) {
+      document.querySelector('.main-content').insertAdjacentHTML(
+        'beforeend',
+        `<div class="alert alert-error">⚠️ ${err.message}</div>`
+      );
+    }
+  }
+
+  loadStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Music Genre Classifier</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<button class="hamburger" aria-label="Open menu">☰</button>
+<div class="page-wrapper">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎵</div>
+      <div>
+        <div class="logo-text">GenreAI</div>
+        <div class="logo-sub">Music Classifier</div>
+      </div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="upload.html"    class="nav-link"><span class="nav-icon">🎧</span> Upload & Predict</a>
+    <a href="history.html"   class="nav-link"><span class="nav-icon">📋</span> History</a>
+    <a href="stats.html"     class="nav-link"><span class="nav-icon">📊</span> Statistics</a>
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="avatar" data-avatar></div>
+        <div class="sidebar-username" data-username></div>
+      </div>
+      <button class="logout-btn">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="page-header fade-up">
+      <div class="page-title">Dashboard</div>
+      <div class="page-subtitle">Your music classification overview</div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card fade-up delay-1" style="--accent-color:#00e5ff">
+        <div class="stat-icon">🎵</div>
+        <div class="stat-value" id="totalPredictions">—</div>
+        <div class="stat-label">Total Predictions</div>
+      </div>
+      <div class="stat-card fade-up delay-2" style="--accent-color:#ffd166">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-value" id="topGenre" style="font-size:20px;text-transform:capitalize">—</div>
+        <div class="stat-label">Most Predicted Genre</div>
+      </div>
+      <div class="stat-card fade-up delay-3" style="--accent-color:#06d6a0">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value" id="avgConf">—</div>
+        <div class="stat-label">Avg. Confidence</div>
+      </div>
+      <div class="stat-card fade-up delay-4" style="--accent-color:#ce93d8">
+        <div class="stat-icon">🤖</div>
+        <div class="stat-value">CNN</div>
+        <div class="stat-label">Model Architecture</div>
+      </div>
+    </div>
+
+    <!-- Waveform decoration -->
+    <div class="waveform-bg" id="waveform"></div>
+
+    <!-- Quick action -->
+    <div style="display:flex;gap:12px;margin-bottom:32px;" class="fade-up">
+      <a href="upload.html" class="btn btn-primary">🎧 Classify New Track</a>
+      <a href="stats.html"  class="btn btn-secondary">📊 View Statistics</a>
+    </div>
+
+    <!-- Recent predictions -->
+    <div class="card fade-up">
+      <div class="card-title">Recent Predictions</div>
+      <div id="recentTable">
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <p style="margin-top:16px;color:var(--text-muted)">Loading…</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+
+  async function loadDashboard() {
+    try {
+      const data = await apiFetch('/stats');
+
+      document.getElementById('totalPredictions').textContent = data.total_predictions;
+      document.getElementById('topGenre').textContent         = data.most_predicted || 'N/A';
+      document.getElementById('avgConf').textContent          = data.average_confidence
+        ? data.average_confidence + '%' : 'N/A';
+
+      const recentTable = document.getElementById('recentTable');
+      if (!data.recent_predictions.length) {
+        recentTable.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🎶</div>
+            <div class="empty-title">No predictions yet</div>
+            <p>Upload a WAV file to get started</p>
+            <a href="upload.html" class="btn btn-primary" style="margin-top:16px">Upload Audio</a>
+          </div>`;
+        return;
+      }
+
+      recentTable.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>File</th><th>Genre</th><th>Confidence</th><th>Date</th>
+            </tr></thead>
+            <tbody>
+              ${data.recent_predictions.map(p => `
+                <tr>
+                  <td class="font-mono" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    ${p.filename}</td>
+                  <td><span class="genre-badge" style="background:${genreColor(p.predicted_genre)}22;color:${genreColor(p.predicted_genre)};border-color:${genreColor(p.predicted_genre)}44">${p.predicted_genre}</span></td>
+                  <td class="font-mono">${p.confidence_score}%</td>
+                  <td style="color:var(--text-muted);font-size:13px">${formatDate(p.prediction_time)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (err) {
+      document.getElementById('recentTable').innerHTML = `<div class="alert alert-error">⚠️ ${err.message}</div>`;
+    }
+  }
+
+  buildWaveform(document.getElementById('waveform'));
+  loadDashboard();
+</script>
+</body>
+</html>
