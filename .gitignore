@@ -16,8 +16,7 @@ model/genre_classifier.keras
 model/label_encoder.pkl
 model/training_history.png
 
-# Database
-backend/database.db
+
 
 # Uploads (user data — not committed)
 backend/uploads/*
